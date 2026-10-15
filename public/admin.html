@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin | TRS CIS Tickets</title><style>
+:root{--bg:#0b0a14;--card:#14122a;--line:#2a2650;--pri:#5b3df5;--pri2:#8b6bff;--txt:#eceaff;--mut:#9a96c4}
+*{box-sizing:border-box}
+body{margin:0;color:var(--txt);font:16px/1.5 Inter,system-ui,sans-serif;background:radial-gradient(900px 400px at 80% -10%,#3a22b8 0,transparent 70%),var(--bg)}
+.wrap{max-width:780px;margin:0 auto;padding:24px 16px 64px}
+nav{display:flex;justify-content:space-between;padding:8px 0 24px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+nav a{color:var(--pri2);text-decoration:none}
+.hero{background:linear-gradient(120deg,#3a22c4,#6d4dff);border-radius:16px;padding:40px 28px}
+h1{margin:0;font-size:clamp(32px,7vw,56px);font-weight:900;text-transform:uppercase;line-height:1}
+.hero p{margin:10px 0 0;opacity:.85}
+.card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pri);border-radius:12px;padding:20px;margin:16px 0}
+label{display:block;font-size:12px;color:var(--mut);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.07em}
+input,select,textarea{width:100%;background:#0e0c20;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:11px 12px;font:inherit}
+textarea{min-height:110px;resize:vertical}
+button,.btn{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;margin:10px 8px 0 0}
+button.alt,.btn.alt{background:#262250}
+.chip{font-size:11px;padding:2px 9px;border-radius:99px;background:#262250;color:var(--pri2);font-weight:800;text-transform:uppercase}
+.msg{padding:10px 12px;border-radius:8px;margin:8px 0;background:#0e0c20;white-space:pre-wrap}
+.msg.admin{border-left:3px solid var(--pri2)}
+small,footer{color:var(--mut)}
+footer{margin-top:32px;font-size:13px;text-align:center}
+.hp{position:absolute;left:-9999px}
+</style></head><body><div class="wrap">
+<nav><span>TRS CIS Tickets · Admin</span><a href="/">Public form</a></nav><div id="app"></div>
+<footer>TRS CIS Sports Administration</footer></div>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let pw=sessionStorage.pw||'';
+const call=(method,body)=>fetch('/api/admin',{method,headers:{'Content-Type':'application/json','x-admin':pw},body:body&&JSON.stringify(body)});
+async function load(){
+  const r=await call('GET');
+  if(r.status===401){pw=prompt('Admin password')||'';sessionStorage.pw=pw;return pw?load():0}
+  const list=await r.json();
+  $('#app').innerHTML=list.length?list.map(t=>`<div class="card" data-id="${t.id}"><span class="chip">${t.status}</span> <b>#${t.id}</b> · ${esc(t.category)}<br>
+  <small>From <b>${esc(t.discord)}</b> · ${new Date(t.created).toLocaleString()}</small><h3>${esc(t.subject)}</h3>
+  ${t.messages.map(m=>`<div class="msg ${m.from}"><small>${m.from==='admin'?'Staff':esc(t.discord)}</small><br>${esc(m.text)}</div>`).join('')}
+  <textarea placeholder="Reply…"></textarea>
+  <button data-a="reply">Reply</button><button class="alt" data-a="close">Reply &amp; close</button>
+  ${t.url?`<a class="btn alt" href="${t.url}" target="_blank">Open in Discord</a>`:'<button class="alt" data-a="discord">Open ticket in Discord</button>'}</div>`).join(''):'<div class="card">No tickets yet.</div>';
+}
+document.addEventListener('click',async e=>{const a=e.target.dataset.a;if(!a)return;
+  const c=e.target.closest('.card'),text=c.querySelector('textarea').value;
+  const r=await call('POST',{action:a==='close'?'reply':a,id:c.dataset.id,text,status:a==='close'?'closed':'answered'});
+  const d=await r.json();if(!r.ok)return alert(d.error);
+  if(a==='discord')window.open(d.url,'_blank');load();});
+load();setInterval(()=>{if(!document.querySelector('textarea:focus'))load()},30000);
+</script></body></html>
